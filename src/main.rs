@@ -2,9 +2,12 @@ mod cli;
 mod storage;
 mod commands;
 mod config;
+mod models;
 
 use crate::cli::{CliArgs, parse_args, Subcommand};
-use crate::commands::{create_new_todo, list_todos, print_help};
+use crate::commands::{
+    add_todo, create_new_todo, list_todos, print_help
+};
 
 use crate::config::DEFAULT_TODO_FILE;
 
@@ -32,7 +35,18 @@ fn main() {
             create_new_todo(&DEFAULT_TODO_FILE);
         }
         Subcommand::Add => {
-            // Handle add subcommand
+            match add_todo(&DEFAULT_TODO_FILE, &args) {
+                Ok(success) => {
+                    if success {
+                        println!("Tarea agregada exitosamente.");
+                    } else {
+                        println!("No se pudo agregar la tarea.");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error al agregar la tarea: {}", e);
+                }
+            }
         }
         Subcommand::List => {
             list_todos();
