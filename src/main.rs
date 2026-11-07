@@ -1,8 +1,13 @@
 mod cli;
 mod lib;
+mod storage;
+mod config;
 
-use cli::{CliArgs, parse_args};
-use lib::{print_help, create_new_todo};
+use crate::cli::{CliArgs, parse_args};
+use crate::lib::{print_help};
+use crate::storage::{create_new_todo, list_todos};
+
+use crate::config::DEFAULT_TODO_FILE;
 
 fn main() {     
     let args: Vec<String> = std::env::args().collect();
@@ -13,14 +18,14 @@ fn main() {
             print_help();
         }
         "init" => {
-            create_new_todo();
+            create_new_todo(&DEFAULT_TODO_FILE);
         }
         // "add" => {
         //     // Handle add subcommand
         // }
-        // "list" => {
-        //     // Handle list subcommand
-        // }
+        "list" => {
+            list_todos();
+        }
         // "complete" => {
         //     // Handle complete subcommand
         // }
@@ -37,6 +42,4 @@ fn main() {
             print_help();
         }
     }
-
-    println!("Hello, world! {} {}", args.subcommand, args.options.join(" "));
 }
