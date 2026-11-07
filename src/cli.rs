@@ -1,20 +1,6 @@
 //! Definición de subcomandos, argumentos y opciones de la CLI.
 
-pub struct CliArgs {
-    pub subcommand: String,
-    pub options: Vec<String>,
-}
-
-pub enum Subcommand {
-    Help,
-    Init,
-    Add,
-    List,
-    Complete,
-    Delete,
-    Search,
-    Stats,
-}
+use crate::models::{CliOptions , CliArgs, Subcommand};
 
 pub fn print_cli_help() {
     println!("StudyFlow CLI - Administrador de Tareas");
@@ -33,13 +19,43 @@ pub fn print_cli_help() {
     println!("  stats      Muestra estadísticas de las tareas.");
 }
 
-pub fn options_to_struct(args: &Vec<String>) -> CliArgs {
-    let 
+pub fn search_double_dashed_arg(args: &Vec<String>, arg_name: &str) -> Option<String> {
+    let double_dashed_arg = format!("--{}", arg_name);
+    for i in 0..args.len() {
+        if args[i] == double_dashed_arg {
+            if i + 1 < args.len() {
+                return Some(args[i + 1].clone());
+            }
+        }
+    }
+    None
 }
 
-pub fn parse_args(args: Vec<String>) -> CliArgs {
+/// funcion para parsear los args esperados por erl cli.
+pub fn options_to_struct(args: &Vec<String>) -> CliOptions {
+    let priority = match search_double_dashed_arg(args, "priority") {
+        Some(value) => value.parse::<u8>().unwrap_or(0),
+        None => 3,
+    };
+
+    CliOptions { priority }
+}
+
+pub fn parse_args(args: &Vec<String>) -> CliArgs {
     let subcommand = args.get(1).cloned().unwrap_or_else(|| "help".into());
-    let options = args.into_iter().skip(2).collect();
+    let subcommand: Subcommand = match subcommand.as_str() {
+        "help" => Subcommand::Help,
+        "init" => Subcommand::Init,
+        "add" => Subcommand::Add,
+        "list" => Subcommand::List,
+        "complete" => Subcommand::Complete,
+        "delete" => Subcommand::Delete,
+        "search" => Subcommand::Search,
+        "stats" => Subcommand::Stats,
+        _ => Subcommand::Help,
+    };
+    let options = args.into_iter().skip(2).cloned().collect::<Vec<String>>();
+    let structured_options = options_to_struct(&args);
     
-    CliArgs { subcommand, options }
+    CliArgs { subcommand, options, structured_options }
 }

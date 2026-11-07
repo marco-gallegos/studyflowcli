@@ -1,10 +1,8 @@
 //! Implementación de la lógica de cada comando.
-use std::io::{self};
+use std::{io::{self}};
 use serde_json::{self};
 use crate::{
-    cli::{CliArgs, print_cli_help},
-    storage::{create_new_todo_file, file_exists, list_get_todo_content},
-    models::{Tarea},
+    cli::{print_cli_help}, models::{EstadoTarea, Tarea, CliArgs}, storage::{create_new_todo_file, file_exists, list_get_todo_content},
 };
 
 
@@ -15,7 +13,7 @@ pub fn deserialize_str_json_data(json_str: &str) -> Result<Vec<Tarea>, serde_jso
 }
 
 pub fn filter_active_todos(todos: Vec<Tarea>) -> Vec<Tarea> {
-    todos.into_iter().filter(|t| !t.completada).collect()
+    todos.into_iter().filter(|t| !matches!(t.estado, EstadoTarea::Completada)).collect()
 }
 
 
@@ -87,7 +85,7 @@ pub fn list_todos() {
     }
 
     for todo in todos.into_iter().enumerate() {
-        println!("tarea {}: {} (Completada: {}, Prioridad: {})", todo.1.id, todo.1.descripcion, todo.1.completada, todo.1.prioridad);
+        println!("tarea {}: {} (Completada: {:?}, Prioridad: {})", todo.1.id, todo.1.descripcion, todo.1.estado , todo.1.prioridad);
     }
 }
 
@@ -105,6 +103,8 @@ pub fn add_todo(file_name: &str, args: &CliArgs) -> Result<bool, Box<dyn std::er
     }
 
     let todo_description: String = args.options[0].clone();
+    let creado_en: String = "hoy".to_string();
+    let cvategoria: Option<String> = None; // Puedes cambiar esto según tus necesidades
 
 
 
@@ -118,7 +118,7 @@ pub fn add_todo(file_name: &str, args: &CliArgs) -> Result<bool, Box<dyn std::er
     };
 
 
-    let new_todo = Tarea::nueva_tarea(&todo_description, false, 3);
+    let new_todo = Tarea::nueva_tarea(&todo_description, &EstadoTarea::Pendiente, &(3),  &cvategoria, &creado_en);
 
     todos.push(new_todo);
 
@@ -146,7 +146,7 @@ pub fn complete_todo(file_name: &str, args: &CliArgs) -> Result<(), Box<dyn std:
     let mut todos = get_todos(file_name, true)?;
 
     if let Some(index) = get_todo_by_id(&todos, id)? {
-        todos[index as usize].completada = true;
+        todos[index as usize].estado = EstadoTarea::Completada;
 
         let updated_json = serde_json::to_string(&todos)?;
         std::fs::write(file_name, updated_json)?;
@@ -209,7 +209,7 @@ pub fn search_todos(file_name: &str, args: &CliArgs) -> Result<Vec<Tarea>, std::
         println!("No se encontraron tareas que coincidan con la búsqueda.");
     } else {
         for todo in &results {
-            println!("tarea {}: {} (Completada: {}, Prioridad: {})", todo.id, todo.descripcion, todo.completada, todo.prioridad);
+            println!("tarea {}: {} (Completada: {:?}, Prioridad: {})", todo.id, todo.descripcion, todo.estado, todo.prioridad);
         }
     }
 
@@ -220,7 +220,7 @@ pub fn get_stats(file_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let todos = get_todos(file_name, false)?;
 
     let total = todos.len();
-    let completed = todos.iter().filter(|t| t.completada).count();
+    let completed = todos.iter().filter(|t| matches!(t.estado, EstadoTarea::Completada) ).count();
     let pending = total - completed;
 
     println!("Estadísticas de tareas:");

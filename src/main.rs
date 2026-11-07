@@ -1,27 +1,16 @@
-use crate::cli::{CliArgs, parse_args, Subcommand};
 use studyflowcli::{
     commands::{add_todo, complete_todo, create_new_todo, list_todos, print_help,
         delete_todo, search_todos, get_stats},
     config::DEFAULT_TODO_FILE,
+    cli::{parse_args},
+    models::{CliArgs, Subcommand},
 };
 
 fn main() {     
     let args: Vec<String> = std::env::args().collect();
-    let args: CliArgs = parse_args(args);
+    let args: CliArgs = parse_args(&args);
 
-    let command = match args.subcommand.as_str() {
-        "help" => Subcommand::Help,
-        "init" => Subcommand::Init,
-        "add" => Subcommand::Add,
-        "list" => Subcommand::List,
-        "complete" => Subcommand::Complete,
-        "delete" => Subcommand::Delete,
-        "search" => Subcommand::Search,
-        "stats" => Subcommand::Stats,
-        _ => Subcommand::Help,
-    };
-
-    match command {
+    match args.subcommand {
         Subcommand::Help  => {
             print_help();
         }
