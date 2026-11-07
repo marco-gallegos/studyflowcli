@@ -2,12 +2,12 @@
 
 use crate::models::{EstadoTarea, StatusReport, Tarea};
 
-pub fn stats_report(todos: &Vec<Tarea>) -> StatusReport {
-    let total = todos.len() as u8;
+pub fn stats_report(todos: &[Tarea]) -> StatusReport {
+    let total = todos.len();
     let completed = todos
         .iter()
         .filter(|tarea| matches!(tarea.estado, EstadoTarea::Completada))
-        .count() as u8;
+        .count();
     let pending = total - completed;
     let percentage = if total == 0 {
         0.0
@@ -15,10 +15,10 @@ pub fn stats_report(todos: &Vec<Tarea>) -> StatusReport {
         completed as f64 * 100.0 / total as f64
     };
 
-    return StatusReport {
-        total: total,
-        pending: pending,
-        completed: completed,
-        percentage: percentage,
-    };
+    StatusReport {
+        total,
+        pending,
+        completed,
+        percentage,
+    }
 }

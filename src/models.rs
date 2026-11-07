@@ -79,8 +79,8 @@ pub struct CliArgs {
 }
 
 pub struct StatusReport {
-    pub total: u8,
-    pub pending: u8,
-    pub completed: u8,
+    pub total: usize,
+    pub pending: usize,
+    pub completed: usize,
     pub percentage: f64,
 }
