@@ -4,22 +4,46 @@ use std::fmt;
 use std::io;
 
 /// Errores recuperables de StudyFlow CLI.
+///
+/// # Ejemplo
+///
+/// ```
+/// use studyflowcli::errors::AppError;
+///
+/// let error = AppError::DescripcionVacia;
+///
+/// assert_eq!(error.to_string(), "La descripción no puede estar vacía.");
+/// ```
 #[derive(Debug)]
 pub enum AppError {
+    /// Falló una operación de entrada o salida.
     Io(io::Error),
+    /// El archivo de datos no contiene JSON válido.
     Json(serde_json::Error),
+    /// No existe el archivo de datos indicado.
     ArchivoNoEncontrado(String),
+    /// Ya existe un archivo donde se intentó inicializar el proyecto.
     ArchivoYaExiste(String),
+    /// No existe una tarea con el ID indicado.
     TareaNoEncontrada(u64),
+    /// La descripción de una tarea está vacía.
     DescripcionVacia,
+    /// El texto de búsqueda está vacío.
     BusquedaVacia,
+    /// El valor recibido como ID no es un número válido.
     IdInvalido(String),
+    /// El valor recibido como prioridad no es un número válido.
     PrioridadInvalida(String),
+    /// El subcomando no existe.
     ComandoDesconocido(String),
+    /// Falta un argumento obligatorio para un comando.
     ArgumentoFaltante {
+        /// Nombre del comando que necesita el argumento.
         comando: &'static str,
+        /// Forma de uso esperada.
         uso: &'static str,
     },
+    /// No se pudo consultar la hora del sistema.
     Reloj(String),
 }
 
@@ -79,4 +103,16 @@ impl From<serde_json::Error> for AppError {
 }
 
 /// Resultado de una operación de StudyFlow CLI.
+///
+/// # Ejemplo
+///
+/// ```
+/// use studyflowcli::errors::{AppError, AppResult};
+///
+/// let result: AppResult<u8> = Ok(3);
+/// assert_eq!(result.unwrap(), 3);
+///
+/// let error: AppResult<u8> = Err(AppError::DescripcionVacia);
+/// assert!(error.is_err());
+/// ```
 pub type AppResult<T> = Result<T, AppError>;

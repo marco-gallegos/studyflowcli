@@ -1,3 +1,8 @@
+//! Punto de entrada del binario `studyflowcli`.
+//!
+//! Solo interpreta los argumentos, delega en la librería y traduce el
+//! resultado a un código de salida.
+
 use std::process::ExitCode;
 
 use studyflowcli::{
