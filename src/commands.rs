@@ -1,6 +1,6 @@
 //! Implementación de la lógica de cada comando.
-use std::io::{self, Error};
-use serde_json::{self, value::Index};
+use std::io::{self};
+use serde_json::{self};
 use crate::{cli::CliArgs, storage::{create_new_todo_file, file_exists, list_get_todo_content}};
 use crate::models::Tarea;
 
@@ -78,7 +78,7 @@ pub fn list_todos() {
             return;
         }
     };
-    let mut todos: Vec<Tarea> = match deserialize_str_json_data(&contents) {
+    let todos: Vec<Tarea> = match deserialize_str_json_data(&contents) {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Error al deserializar el contenido JSON: {}", e);
@@ -195,14 +195,16 @@ pub fn delete_todo(file_name: &str, args: &CliArgs) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
-pub fn search_todos(file_name: &str, args: &CliArgs) -> Result<Vec<Tarea>, Box<dyn std::error::Error>> {
+pub fn search_todos(file_name: &str, args: &CliArgs) -> Result<Vec<Tarea>, std::io::Error> {
     if args.options.is_empty() {
-        println!("Error: No se proporcionó una palabra clave para buscar.");
-        return Ok(vec![]);
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "No se proporcionó una palabra clave para la búsqueda."));
     }
 
     let keyword = &args.options[0].to_lowercase();
-    let todos = get_todos(file_name, false)?;
+    let todos = match get_todos(file_name, false) {
+        Ok(todos) => todos,
+        Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::Other, format!("Error al obtener las tareas: {}", e))),
+    };
 
     let results: Vec<Tarea> = todos.into_iter()
         .filter(|t| t.descripcion.to_lowercase().contains(keyword))

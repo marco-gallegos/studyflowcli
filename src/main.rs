@@ -86,7 +86,9 @@ fn main() {
         }
         Subcommand::Stats => {
             match get_stats(&DEFAULT_TODO_FILE) {
-                Ok(stats) => (),
+                Ok(_) => {
+                    // Estadísticas mostradas exitosamente
+                }
                 Err(e) => {
                     eprintln!("Error al obtener estadísticas: {}", e);
                 }
