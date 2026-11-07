@@ -18,14 +18,13 @@ pub fn create_new_todo_file(file_name: &str) -> bool {
         return false;
     }
     let mut file = File::create(file_name).unwrap();
-    writeln!(file, "{{}}").unwrap();
+    writeln!(file, "[]").unwrap();
     file.flush().unwrap();
     return true;
 }
 
 pub fn read_todo_file(file_name: &str) -> io::Result<String> {
     if !file_exists(file_name) {
-        println!("El archivo '{}' no existe. Por favor, inicializa un proyecto primero.", file_name);
         return Err(io::Error::new(io::ErrorKind::NotFound, "Archivo no encontrado"));
     }
     let mut file = File::open(file_name)?;
@@ -39,7 +38,6 @@ pub fn list_get_todo_content() ->  Result<String, Box<dyn Error>> {
     match read_todo_file(DEFAULT_TODO_FILE) {
         Ok(content) => Ok(content),
         Err(e) => {
-            println!("Error al leer el archivo '{}': {}", DEFAULT_TODO_FILE, e);
             Err(Box::new(e))
         }
     }

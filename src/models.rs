@@ -16,10 +16,10 @@ pub struct Tarea {
 }
 
 impl Tarea {
-    pub fn nueva_tarea(descripcion: String, completada: bool, prioridad: u8) -> Self {
+    pub fn nueva_tarea(descripcion: &String, completada: bool, prioridad: u8) -> Self {
         Tarea {
             id: generate_id(), // Se asignará un ID único al agregar la tarea al proyecto
-            descripcion,
+            descripcion: descripcion.clone(),
             completada,
             prioridad,
         }

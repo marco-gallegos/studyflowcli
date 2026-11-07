@@ -6,7 +6,8 @@ mod models;
 
 use crate::cli::{CliArgs, parse_args, Subcommand};
 use crate::commands::{
-    add_todo, create_new_todo, list_todos, print_help
+    add_todo, complete_todo, create_new_todo, list_todos, print_help,
+    delete_todo, search_todos, get_stats
 };
 
 use crate::config::DEFAULT_TODO_FILE;
@@ -52,16 +53,44 @@ fn main() {
             list_todos();
         }
         Subcommand::Complete => {
-            // Handle complete subcommand
+            match complete_todo(&DEFAULT_TODO_FILE, &args) {
+                Ok(()) => {
+                    println!("Tarea completada exitosamente.");
+                }
+                Err(e) => {
+                    eprintln!("Error al completar la tarea: {}", e);
+                }
+            }
         }
         Subcommand::Delete => {
-            // Handle delete subcommand
+            match delete_todo(&DEFAULT_TODO_FILE, &args) {
+                Ok(()) => {
+                    println!("Tarea eliminada exitosamente.");
+                }
+                Err(e) => {
+                    eprintln!("Error al eliminar la tarea: {}", e);
+                }
+            }
         }
         Subcommand::Search => {
-            // Handle search subcommand
+            match search_todos(&DEFAULT_TODO_FILE, &args) {
+                Ok(results) => {
+                    if results.is_empty() {
+                        println!("No se encontraron tareas que coincidan con la búsqueda.");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error al buscar tareas: {}", e);
+                }
+            }
         }
         Subcommand::Stats => {
-            // Handle stats subcommand
+            match get_stats(&DEFAULT_TODO_FILE) {
+                Ok(stats) => (),
+                Err(e) => {
+                    eprintln!("Error al obtener estadísticas: {}", e);
+                }
+            }
         }
     }
 }
