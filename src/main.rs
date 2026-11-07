@@ -1,11 +1,10 @@
 mod cli;
-mod lib;
 mod storage;
+mod commands;
 mod config;
 
-use crate::cli::{CliArgs, parse_args};
-use crate::lib::{print_help};
-use crate::storage::{create_new_todo, list_todos};
+use crate::cli::{CliArgs, parse_args, Subcommand};
+use crate::commands::{create_new_todo, list_todos, print_help};
 
 use crate::config::DEFAULT_TODO_FILE;
 
@@ -13,33 +12,42 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let args: CliArgs = parse_args(args);
 
-    match args.subcommand.as_str() {
-        "help" => {
+    let command = match args.subcommand.as_str() {
+        "help" => Subcommand::Help,
+        "init" => Subcommand::Init,
+        "add" => Subcommand::Add,
+        "list" => Subcommand::List,
+        "complete" => Subcommand::Complete,
+        "delete" => Subcommand::Delete,
+        "search" => Subcommand::Search,
+        "stats" => Subcommand::Stats,
+        _ => Subcommand::Help,
+    };
+
+    match command {
+        Subcommand::Help  => {
             print_help();
         }
-        "init" => {
+        Subcommand::Init => {
             create_new_todo(&DEFAULT_TODO_FILE);
         }
-        // "add" => {
-        //     // Handle add subcommand
-        // }
-        "list" => {
+        Subcommand::Add => {
+            // Handle add subcommand
+        }
+        Subcommand::List => {
             list_todos();
         }
-        // "complete" => {
-        //     // Handle complete subcommand
-        // }
-        // "delete" => {
-        //     // Handle delete subcommand
-        // }
-        // "search" => {
-        //     // Handle search subcommand
-        // }
-        // "stats" => {
-        //     // Handle stats subcommand
-        // }
-        _ => {
-            print_help();
+        Subcommand::Complete => {
+            // Handle complete subcommand
+        }
+        Subcommand::Delete => {
+            // Handle delete subcommand
+        }
+        Subcommand::Search => {
+            // Handle search subcommand
+        }
+        Subcommand::Stats => {
+            // Handle stats subcommand
         }
     }
 }

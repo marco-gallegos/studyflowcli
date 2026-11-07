@@ -5,15 +5,15 @@ pub struct CliArgs {
     pub options: Vec<String>,
 }
 
-enum Subcommand {
-    help,
-    init,
-    add,
-    list,
-    complete,
-    delete,
-    search,
-    stats,
+pub enum Subcommand {
+    Help,
+    Init,
+    Add,
+    List,
+    Complete,
+    Delete,
+    Search,
+    Stats,
 }
 
 pub fn parse_args(args: Vec<String>) -> CliArgs {

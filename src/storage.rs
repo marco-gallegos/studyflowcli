@@ -1,6 +1,7 @@
 //! Lectura y escritura del archivo local de datos.
 use std::fs::File;
 use std::io::{self, Write, Read};
+use std::error::Error;
 
 use crate::config::DEFAULT_TODO_FILE;
 
@@ -11,7 +12,7 @@ pub fn file_exists(file_name: &str) -> bool {
     return false;
 }
 
-pub fn create_new_todo(file_name: &str) -> bool {
+pub fn create_new_todo_file(file_name: &str) -> bool {
     if file_exists(file_name) {
         println!("El archivo '{}' ya existe. No se puede crear un nuevo proyecto.", file_name);
         return false;
@@ -34,14 +35,12 @@ pub fn read_todo_file(file_name: &str) -> io::Result<String> {
 }
 
 
-pub fn list_todos() {
+pub fn list_get_todo_content() ->  Result<String, Box<dyn Error>> {
     match read_todo_file(DEFAULT_TODO_FILE) {
-        Ok(contents) => {
-            println!("Contenido del archivo '{}':", DEFAULT_TODO_FILE);
-            println!("{}", contents);
-        }
+        Ok(content) => Ok(content),
         Err(e) => {
             println!("Error al leer el archivo '{}': {}", DEFAULT_TODO_FILE, e);
+            Err(Box::new(e))
         }
     }
 }
