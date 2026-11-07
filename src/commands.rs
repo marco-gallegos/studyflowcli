@@ -6,8 +6,8 @@ use crate::{
     cli::print_cli_help,
     errors::{AppError, AppResult},
     models::{CliArgs, EstadoTarea, Tarea},
+    reports::stats_report,
     storage::{create_new_todo_file, file_exists, read_todo_file},
-    reports::{stats_report}
 };
 
 /// Deserializa las tareas almacenadas en una cadena JSON.
@@ -176,7 +176,7 @@ pub fn search_todos(file_name: &str, args: &CliArgs) -> AppResult<Vec<Tarea>> {
 
 pub fn get_stats(file_name: &str) -> AppResult<()> {
     let todos = get_todos(file_name, false)?;
-    
+
     let report = stats_report(&todos);
 
     println!("Estadísticas de tareas:");

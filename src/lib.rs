@@ -7,5 +7,5 @@ pub mod commands;
 pub mod config;
 pub mod errors;
 pub mod models;
-pub mod storage;
 pub mod reports;
+pub mod storage;
