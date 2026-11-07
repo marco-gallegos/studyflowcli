@@ -1,16 +1,9 @@
-mod cli;
-mod storage;
-mod commands;
-mod config;
-mod models;
-
 use crate::cli::{CliArgs, parse_args, Subcommand};
-use crate::commands::{
-    add_todo, complete_todo, create_new_todo, list_todos, print_help,
-    delete_todo, search_todos, get_stats
+use studyflowcli::{
+    commands::{add_todo, complete_todo, create_new_todo, list_todos, print_help,
+        delete_todo, search_todos, get_stats},
+    config::DEFAULT_TODO_FILE,
 };
-
-use crate::config::DEFAULT_TODO_FILE;
 
 fn main() {     
     let args: Vec<String> = std::env::args().collect();

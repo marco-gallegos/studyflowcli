@@ -1,8 +1,11 @@
 //! Implementación de la lógica de cada comando.
 use std::io::{self};
 use serde_json::{self};
-use crate::{cli::CliArgs, storage::{create_new_todo_file, file_exists, list_get_todo_content}};
-use crate::models::Tarea;
+use crate::{
+    cli::{CliArgs, print_cli_help},
+    storage::{create_new_todo_file, file_exists, list_get_todo_content},
+    models::{Tarea},
+};
 
 
 /// Deserializa una cadena JSON en un objeto `serde_json::Value`.
@@ -51,15 +54,7 @@ pub fn get_todo_by_id(todos: &Vec<Tarea>, id: u32) -> Result<Option<u32>, Box<dy
 }
 
 pub fn print_help() {
-    println!("StudyFlow CLI - Comandos disponibles:");
-    println!("  help      - Muestra esta ayuda");
-    println!("  init      - Inicializa un nuevo proyecto");
-    println!("  add       - Agrega una nueva tarea");
-    println!("  list      - Lista todas las tareas");
-    println!("  complete  - Marca una tarea como completada");
-    println!("  delete    - Elimina una tarea");
-    println!("  search    - Busca tareas por palabra clave");
-    println!("  stats     - Muestra estadísticas de las tareas");
+    print_cli_help();
 }
 
 

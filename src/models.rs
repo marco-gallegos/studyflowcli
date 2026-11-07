@@ -1,3 +1,4 @@
+//! Implementación de los modelos de datos utilizados en la aplicación.
 
 pub fn generate_id() -> u32 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -24,9 +25,3 @@ impl Tarea {
         }
     }
 }
-
-
-// pub struct Proyecto {
-//     pub nombre: String,
-//     pub tareas: Vec<Tarea>,
-// }
