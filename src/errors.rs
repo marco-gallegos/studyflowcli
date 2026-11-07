@@ -116,3 +116,73 @@ impl From<serde_json::Error> for AppError {
 /// assert!(error.is_err());
 /// ```
 pub type AppResult<T> = Result<T, AppError>;
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use super::*;
+
+    #[test]
+    fn los_mensajes_son_entendibles() {
+        assert_eq!(
+            AppError::DescripcionVacia.to_string(),
+            "La descripción no puede estar vacía."
+        );
+        assert_eq!(
+            AppError::BusquedaVacia.to_string(),
+            "La búsqueda no puede estar vacía."
+        );
+        assert_eq!(
+            AppError::TareaNoEncontrada(42).to_string(),
+            "No existe una tarea con ID 42."
+        );
+        assert_eq!(
+            AppError::IdInvalido("abc".to_string()).to_string(),
+            "El ID 'abc' no es un número válido."
+        );
+        assert_eq!(
+            AppError::PrioridadInvalida("alta".to_string()).to_string(),
+            "La prioridad 'alta' no es un número válido."
+        );
+        assert_eq!(
+            AppError::ComandoDesconocido("foo".to_string()).to_string(),
+            "Comando desconocido: 'foo'. Usa 'help' para ver las opciones."
+        );
+        assert_eq!(
+            AppError::ArchivoNoEncontrado("datos.json".to_string()).to_string(),
+            "No se encontró el archivo 'datos.json'. Ejecuta 'init' primero."
+        );
+        assert_eq!(
+            AppError::ArchivoYaExiste("datos.json".to_string()).to_string(),
+            "El archivo 'datos.json' ya existe."
+        );
+    }
+
+    #[test]
+    fn argumento_faltante_incluye_el_uso() {
+        let error = AppError::ArgumentoFaltante {
+            comando: "add",
+            uso: "studyflowcli add <descripción>",
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "Falta un argumento para 'add'. Uso: studyflowcli add <descripción>"
+        );
+    }
+
+    #[test]
+    fn los_errores_de_io_y_json_exponen_su_causa() {
+        let io_error = AppError::from(io::Error::new(io::ErrorKind::NotFound, "sin archivo"));
+        assert!(io_error.source().is_some());
+
+        let json_error = AppError::from(serde_json::from_str::<u8>("no").unwrap_err());
+        assert!(json_error.source().is_some());
+    }
+
+    #[test]
+    fn los_errores_simples_no_tienen_causa() {
+        assert!(AppError::DescripcionVacia.source().is_none());
+    }
+}

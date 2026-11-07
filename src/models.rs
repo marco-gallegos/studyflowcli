@@ -224,3 +224,37 @@ pub struct StatusReport {
     /// Porcentaje de tareas completadas.
     pub percentage: f64,
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    #[test]
+    fn generate_id_produce_valores_distintos() {
+        let ids: HashSet<u64> = (0..100).map(|_| generate_id().unwrap()).collect();
+
+        assert_eq!(ids.len(), 100);
+    }
+
+    #[test]
+    fn nueva_tarea_copia_los_datos_recibidos() {
+        let categoria = Some("rust".to_string());
+
+        let tarea = Tarea::nueva_tarea(
+            "Repasar ownership",
+            &EstadoTarea::Pendiente,
+            &4,
+            &categoria,
+            "2026-11-07",
+        )
+        .unwrap();
+
+        assert_eq!(tarea.descripcion, "Repasar ownership");
+        assert!(matches!(tarea.estado, EstadoTarea::Pendiente));
+        assert_eq!(tarea.prioridad, 4);
+        assert_eq!(tarea.categoria.as_deref(), Some("rust"));
+        assert_eq!(tarea.creado_en, "2026-11-07");
+    }
+}

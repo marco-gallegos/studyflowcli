@@ -593,3 +593,359 @@ pub fn get_stats(file_name: &str) -> AppResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{CliOptions, Subcommand};
+    use crate::test_support::TempFile;
+
+    fn tarea(id: u64, descripcion: &str, estado: EstadoTarea) -> Tarea {
+        Tarea {
+            id,
+            descripcion: descripcion.to_string(),
+            estado,
+            prioridad: 3,
+            categoria: None,
+            creado_en: "2026-11-07".to_string(),
+        }
+    }
+
+    fn args(subcommand: Subcommand, options: &[&str]) -> CliArgs {
+        CliArgs {
+            subcommand,
+            options: options.iter().map(|valor| valor.to_string()).collect(),
+            structured_options: CliOptions { priority: 3 },
+        }
+    }
+
+    fn escribir(archivo: &TempFile, todos: &[Tarea]) {
+        fs::write(archivo.path(), serde_json::to_string(todos).unwrap()).unwrap();
+    }
+
+    fn leer(archivo: &TempFile) -> Vec<Tarea> {
+        serde_json::from_str(&fs::read_to_string(archivo.path()).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn deserializa_json_valido() {
+        let json = r#"[{"id":1,"descripcion":"Repasar","estado":"pendiente","prioridad":3,"categoria":null,"creado_en":"hoy"}]"#;
+
+        let todos = deserialize_str_json_data(json).unwrap();
+
+        assert_eq!(todos.len(), 1);
+        assert_eq!(todos[0].descripcion, "Repasar");
+    }
+
+    #[test]
+    fn deserializar_json_invalido_devuelve_error() {
+        assert!(matches!(
+            deserialize_str_json_data("no es json"),
+            Err(AppError::Json(_))
+        ));
+    }
+
+    #[test]
+    fn filtra_solo_las_pendientes() {
+        let todos = vec![
+            tarea(1, "uno", EstadoTarea::Pendiente),
+            tarea(2, "dos", EstadoTarea::Completada),
+            tarea(3, "tres", EstadoTarea::Pendiente),
+        ];
+
+        let activos = filter_active_todos(todos);
+
+        assert_eq!(
+            activos.iter().map(|tarea| tarea.id).collect::<Vec<_>>(),
+            vec![1, 3]
+        );
+    }
+
+    #[test]
+    fn get_todos_lee_todas_o_solo_activas() {
+        let archivo = TempFile::new("get_todos");
+        escribir(
+            &archivo,
+            &[
+                tarea(1, "activa", EstadoTarea::Pendiente),
+                tarea(2, "hecha", EstadoTarea::Completada),
+            ],
+        );
+
+        assert_eq!(get_todos(archivo.path(), false).unwrap().len(), 2);
+        assert_eq!(get_todos(archivo.path(), true).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn get_todos_falla_si_el_archivo_no_existe() {
+        let archivo = TempFile::new("get_todos_inexistente");
+
+        assert!(matches!(
+            get_todos(archivo.path(), false),
+            Err(AppError::ArchivoNoEncontrado(_))
+        ));
+    }
+
+    #[test]
+    fn get_todos_falla_con_json_invalido() {
+        let archivo = TempFile::new("get_todos_invalido");
+        fs::write(archivo.path(), "no es json").unwrap();
+
+        assert!(matches!(
+            get_todos(archivo.path(), false),
+            Err(AppError::Json(_))
+        ));
+    }
+
+    #[test]
+    fn encuentra_el_indice_por_id() {
+        let todos = vec![
+            tarea(10, "primera", EstadoTarea::Pendiente),
+            tarea(20, "segunda", EstadoTarea::Pendiente),
+        ];
+
+        assert_eq!(get_todo_by_id(&todos, 20), Some(1));
+        assert_eq!(get_todo_by_id(&todos, 99), None);
+    }
+
+    #[test]
+    fn crea_el_archivo_de_datos() {
+        let archivo = TempFile::new("create_command");
+
+        create_new_todo(archivo.path()).unwrap();
+
+        assert_eq!(fs::read_to_string(archivo.path()).unwrap(), "[]\n");
+    }
+
+    #[test]
+    fn no_inicializa_dos_veces() {
+        let archivo = TempFile::new("create_command_duplicado");
+        create_new_todo(archivo.path()).unwrap();
+
+        assert!(matches!(
+            create_new_todo(archivo.path()),
+            Err(AppError::ArchivoYaExiste(_))
+        ));
+    }
+
+    #[test]
+    fn listar_falla_si_no_existe_el_archivo() {
+        let archivo = TempFile::new("list_inexistente");
+
+        assert!(matches!(
+            list_todos(archivo.path()),
+            Err(AppError::ArchivoNoEncontrado(_))
+        ));
+    }
+
+    #[test]
+    fn agrega_una_tarea_con_prioridad() {
+        let archivo = TempFile::new("add");
+        escribir(&archivo, &[]);
+
+        let mut argumentos = args(Subcommand::Add, &["  Repasar ownership  "]);
+        argumentos.structured_options.priority = 5;
+
+        add_todo(archivo.path(), &argumentos).unwrap();
+
+        let todos = leer(&archivo);
+        assert_eq!(todos.len(), 1);
+        assert_eq!(todos[0].descripcion, "Repasar ownership");
+        assert_eq!(todos[0].prioridad, 5);
+        assert!(matches!(todos[0].estado, EstadoTarea::Pendiente));
+    }
+
+    #[test]
+    fn add_sin_descripcion_devuelve_error() {
+        let archivo = TempFile::new("add_sin_descripcion");
+
+        assert!(matches!(
+            add_todo(archivo.path(), &args(Subcommand::Add, &[])),
+            Err(AppError::ArgumentoFaltante { .. })
+        ));
+    }
+
+    #[test]
+    fn add_con_descripcion_vacia_devuelve_error() {
+        let archivo = TempFile::new("add_vacia");
+        escribir(&archivo, &[]);
+
+        assert!(matches!(
+            add_todo(archivo.path(), &args(Subcommand::Add, &["   "])),
+            Err(AppError::DescripcionVacia)
+        ));
+    }
+
+    #[test]
+    fn completa_solo_la_tarea_indicada() {
+        let archivo = TempFile::new("complete");
+        escribir(
+            &archivo,
+            &[
+                tarea(1, "ya estaba hecha", EstadoTarea::Completada),
+                tarea(2, "pendiente", EstadoTarea::Pendiente),
+            ],
+        );
+
+        complete_todo(archivo.path(), &args(Subcommand::Complete, &["2"])).unwrap();
+
+        let todos = leer(&archivo);
+        assert!(matches!(todos[0].estado, EstadoTarea::Completada));
+        assert!(matches!(todos[1].estado, EstadoTarea::Completada));
+    }
+
+    #[test]
+    fn complete_falla_sin_id() {
+        let archivo = TempFile::new("complete_sin_id");
+
+        assert!(matches!(
+            complete_todo(archivo.path(), &args(Subcommand::Complete, &[])),
+            Err(AppError::ArgumentoFaltante { .. })
+        ));
+    }
+
+    #[test]
+    fn complete_falla_con_id_invalido() {
+        let archivo = TempFile::new("complete_id_invalido");
+
+        assert!(matches!(
+            complete_todo(archivo.path(), &args(Subcommand::Complete, &["abc"])),
+            Err(AppError::IdInvalido(_))
+        ));
+    }
+
+    #[test]
+    fn complete_falla_con_id_inexistente() {
+        let archivo = TempFile::new("complete_inexistente");
+        escribir(&archivo, &[tarea(1, "existente", EstadoTarea::Pendiente)]);
+
+        assert!(matches!(
+            complete_todo(archivo.path(), &args(Subcommand::Complete, &["99"])),
+            Err(AppError::TareaNoEncontrada(99))
+        ));
+    }
+
+    #[test]
+    fn elimina_la_tarea_indicada() {
+        let archivo = TempFile::new("delete");
+        escribir(
+            &archivo,
+            &[
+                tarea(1, "primera", EstadoTarea::Pendiente),
+                tarea(2, "segunda", EstadoTarea::Pendiente),
+            ],
+        );
+
+        delete_todo(archivo.path(), &args(Subcommand::Delete, &["1"])).unwrap();
+
+        let todos = leer(&archivo);
+        assert_eq!(todos.len(), 1);
+        assert_eq!(todos[0].id, 2);
+    }
+
+    #[test]
+    fn delete_falla_con_id_inexistente() {
+        let archivo = TempFile::new("delete_inexistente");
+        escribir(&archivo, &[tarea(1, "existente", EstadoTarea::Pendiente)]);
+
+        assert!(matches!(
+            delete_todo(archivo.path(), &args(Subcommand::Delete, &["99"])),
+            Err(AppError::TareaNoEncontrada(99))
+        ));
+    }
+
+    #[test]
+    fn busca_por_descripcion_sin_distinguir_mayusculas() {
+        let archivo = TempFile::new("search_descripcion");
+        escribir(
+            &archivo,
+            &[
+                tarea(1, "Repasar Rust", EstadoTarea::Pendiente),
+                tarea(2, "Comprar café", EstadoTarea::Pendiente),
+            ],
+        );
+
+        let resultados =
+            search_todos(archivo.path(), &args(Subcommand::Search, &["RUST"])).unwrap();
+
+        assert_eq!(resultados.len(), 1);
+        assert_eq!(resultados[0].id, 1);
+    }
+
+    #[test]
+    fn busca_por_categoria_y_prioridad() {
+        let archivo = TempFile::new("search_categoria");
+        let mut primera = tarea(1, "leer libro", EstadoTarea::Pendiente);
+        primera.categoria = Some("rust".to_string());
+        let mut segunda = tarea(2, "otra tarea", EstadoTarea::Pendiente);
+        segunda.prioridad = 5;
+        escribir(&archivo, &[primera, segunda]);
+
+        let por_categoria =
+            search_todos(archivo.path(), &args(Subcommand::Search, &["rust"])).unwrap();
+        let por_prioridad =
+            search_todos(archivo.path(), &args(Subcommand::Search, &["5"])).unwrap();
+
+        assert_eq!(por_categoria.len(), 1);
+        assert_eq!(por_categoria[0].id, 1);
+        assert_eq!(por_prioridad.len(), 1);
+        assert_eq!(por_prioridad[0].id, 2);
+    }
+
+    #[test]
+    fn busqueda_sin_resultados_devuelve_lista_vacia() {
+        let archivo = TempFile::new("search_sin_resultados");
+        escribir(
+            &archivo,
+            &[tarea(1, "Repasar Rust", EstadoTarea::Pendiente)],
+        );
+
+        let resultados = search_todos(archivo.path(), &args(Subcommand::Search, &["zzz"])).unwrap();
+
+        assert!(resultados.is_empty());
+    }
+
+    #[test]
+    fn busqueda_vacia_devuelve_error() {
+        let archivo = TempFile::new("search_vacia");
+
+        assert!(matches!(
+            search_todos(archivo.path(), &args(Subcommand::Search, &["   "])),
+            Err(AppError::BusquedaVacia)
+        ));
+    }
+
+    #[test]
+    fn busqueda_sin_argumento_devuelve_error() {
+        let archivo = TempFile::new("search_sin_argumento");
+
+        assert!(matches!(
+            search_todos(archivo.path(), &args(Subcommand::Search, &[])),
+            Err(AppError::ArgumentoFaltante { .. })
+        ));
+    }
+
+    #[test]
+    fn stats_funciona_con_archivo_valido() {
+        let archivo = TempFile::new("stats");
+        escribir(
+            &archivo,
+            &[
+                tarea(1, "hecha", EstadoTarea::Completada),
+                tarea(2, "pendiente", EstadoTarea::Pendiente),
+            ],
+        );
+
+        assert!(get_stats(archivo.path()).is_ok());
+    }
+
+    #[test]
+    fn stats_falla_si_no_existe_el_archivo() {
+        let archivo = TempFile::new("stats_inexistente");
+
+        assert!(matches!(
+            get_stats(archivo.path()),
+            Err(AppError::ArchivoNoEncontrado(_))
+        ));
+    }
+}

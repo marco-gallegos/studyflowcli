@@ -29,3 +29,6 @@ pub mod errors;
 pub mod models;
 pub mod reports;
 pub mod storage;
+
+#[cfg(test)]
+mod test_support;

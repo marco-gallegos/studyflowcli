@@ -93,3 +93,59 @@ pub fn read_todo_file(file_name: &str) -> AppResult<String> {
 
     Ok(fs::read_to_string(file_name)?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::TempFile;
+
+    #[test]
+    fn file_exists_detecta_archivos() {
+        let archivo = TempFile::new("exists");
+
+        assert!(!file_exists(archivo.path()));
+
+        fs::write(archivo.path(), "[]").unwrap();
+        assert!(file_exists(archivo.path()));
+    }
+
+    #[test]
+    fn create_new_todo_file_escribe_lista_vacia() {
+        let archivo = TempFile::new("create");
+
+        create_new_todo_file(archivo.path()).unwrap();
+
+        assert_eq!(fs::read_to_string(archivo.path()).unwrap(), "[]\n");
+    }
+
+    #[test]
+    fn create_new_todo_file_no_sobrescribe_datos() {
+        let archivo = TempFile::new("create_duplicado");
+        create_new_todo_file(archivo.path()).unwrap();
+        fs::write(archivo.path(), r#"[{"id":1}]"#).unwrap();
+
+        assert!(matches!(
+            create_new_todo_file(archivo.path()),
+            Err(AppError::ArchivoYaExiste(_))
+        ));
+        assert_eq!(fs::read_to_string(archivo.path()).unwrap(), r#"[{"id":1}]"#);
+    }
+
+    #[test]
+    fn read_todo_file_devuelve_el_contenido() {
+        let archivo = TempFile::new("read");
+        fs::write(archivo.path(), "contenido").unwrap();
+
+        assert_eq!(read_todo_file(archivo.path()).unwrap(), "contenido");
+    }
+
+    #[test]
+    fn read_todo_file_falla_si_no_existe() {
+        let archivo = TempFile::new("read_inexistente");
+
+        assert!(matches!(
+            read_todo_file(archivo.path()),
+            Err(AppError::ArchivoNoEncontrado(_))
+        ));
+    }
+}

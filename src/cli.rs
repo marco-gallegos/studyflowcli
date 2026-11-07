@@ -167,3 +167,167 @@ pub fn parse_args(args: &[String]) -> AppResult<CliArgs> {
         structured_options,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(valores: &[&str]) -> Vec<String> {
+        valores.iter().map(|valor| valor.to_string()).collect()
+    }
+
+    #[test]
+    fn busca_el_valor_de_un_argumento() {
+        let argumentos = args(&["studyflowcli", "add", "tarea", "--priority", "4"]);
+
+        assert_eq!(
+            search_double_dashed_arg(&argumentos, "priority").as_deref(),
+            Some("4")
+        );
+        assert_eq!(search_double_dashed_arg(&argumentos, "categoria"), None);
+    }
+
+    #[test]
+    fn argumento_sin_valor_devuelve_none() {
+        let argumentos = args(&["studyflowcli", "add", "tarea", "--priority"]);
+
+        assert_eq!(search_double_dashed_arg(&argumentos, "priority"), None);
+    }
+
+    #[test]
+    fn prioridad_por_defecto_es_tres() {
+        let argumentos = args(&["studyflowcli", "add", "tarea"]);
+
+        assert_eq!(options_to_struct(&argumentos).unwrap().priority, 3);
+    }
+
+    #[test]
+    fn prioridad_valida_se_convierte() {
+        let argumentos = args(&["studyflowcli", "add", "tarea", "--priority", "5"]);
+
+        assert_eq!(options_to_struct(&argumentos).unwrap().priority, 5);
+    }
+
+    #[test]
+    fn prioridad_invalida_devuelve_error() {
+        let argumentos = args(&["studyflowcli", "add", "tarea", "--priority", "alta"]);
+
+        assert!(matches!(
+            options_to_struct(&argumentos),
+            Err(AppError::PrioridadInvalida(_))
+        ));
+    }
+
+    #[test]
+    fn sin_subcomando_se_muestra_la_ayuda() {
+        let parsed = parse_args(&args(&["studyflowcli"])).unwrap();
+
+        assert!(matches!(parsed.subcommand, Subcommand::Help));
+    }
+
+    #[test]
+    fn reconoce_todos_los_subcomandos() {
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "help"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Help
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "init"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Init
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "add"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Add
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "list"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::List
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "complete"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Complete
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "delete"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Delete
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "search"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Search
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "stats"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Stats
+        ));
+    }
+
+    #[test]
+    fn reconoce_las_ayudas_alternativas() {
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "--help"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Help
+        ));
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "-h"]))
+                .unwrap()
+                .subcommand,
+            Subcommand::Help
+        ));
+    }
+
+    #[test]
+    fn comando_desconocido_devuelve_error() {
+        assert!(matches!(
+            parse_args(&args(&["studyflowcli", "volcar"])),
+            Err(AppError::ComandoDesconocido(comando)) if comando == "volcar"
+        ));
+    }
+
+    #[test]
+    fn las_opciones_posicionales_excluyen_la_prioridad() {
+        let parsed = parse_args(&args(&[
+            "studyflowcli",
+            "add",
+            "--priority",
+            "4",
+            "Repasar Rust",
+        ]))
+        .unwrap();
+
+        assert_eq!(parsed.options, vec!["Repasar Rust".to_string()]);
+        assert_eq!(parsed.structured_options.priority, 4);
+    }
+
+    #[test]
+    fn la_prioridad_puede_ir_despues_de_la_descripcion() {
+        let parsed = parse_args(&args(&[
+            "studyflowcli",
+            "add",
+            "Repasar Rust",
+            "--priority",
+            "2",
+        ]))
+        .unwrap();
+
+        assert_eq!(parsed.options, vec!["Repasar Rust".to_string()]);
+        assert_eq!(parsed.structured_options.priority, 2);
+    }
+}
