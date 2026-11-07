@@ -2,32 +2,27 @@
 use std::{io::{self}};
 use serde_json::{self};
 use crate::{
-    cli::{print_cli_help}, models::{EstadoTarea, Tarea, CliArgs}, storage::{create_new_todo_file, file_exists, list_get_todo_content},
+    cli::{print_cli_help}, models::{EstadoTarea, Tarea, CliArgs},
+    storage::{create_new_todo_file, file_exists, list_get_todo_content},
+    storage::{deserialize_str_json_data},
+    errors::{AppError}
 };
 
-
-/// Deserializa una cadena JSON en un objeto `serde_json::Value`.
-pub fn deserialize_str_json_data(json_str: &str) -> Result<Vec<Tarea>, serde_json::Error> {
-    let todos: Vec<Tarea> = serde_json::from_str(json_str)?;
-    Ok(todos)
-}
-
+/// Comando para filtrar las tareas activas
 pub fn filter_active_todos(todos: Vec<Tarea>) -> Vec<Tarea> {
     todos.into_iter().filter(|t| !matches!(t.estado, EstadoTarea::Completada)).collect()
 }
 
-
-pub fn get_todos(file_name: &str, just_active: bool) -> Result<Vec<Tarea>, Box<dyn std::error::Error>> {
+/// Comando para obtener todas las tareas, con opción de filtrar solo las activas
+pub fn get_todos(file_name: &str, just_active: bool) -> Result<Vec<Tarea>, AppError> {
     if !file_exists(file_name) {
-        return Err(Box::new(io::Error::new(io::ErrorKind::NotFound, "Archivo no encontrado. Inicializa un proyecto primero.")));
+        return Err(AppError::FileNotExist);
     }
-
     let contents = list_get_todo_content()?;
     let todos: Vec<Tarea> = match deserialize_str_json_data(&contents) {
         Ok(data) => data,
-        Err(e) => {
-            eprintln!("Error al deserializar el contenido JSON: {}", e);
-            return Err(Box::new(e));
+        Err(_) => {
+            return Err(AppError::InvalidJsonFile);
         }
     };
 
@@ -40,22 +35,23 @@ pub fn get_todos(file_name: &str, just_active: bool) -> Result<Vec<Tarea>, Box<d
     Ok(todos)
 }
 
-
+/// fuuncion para obtener la posicion de la tarea en el vector de tareas por su id.
 pub fn get_todo_by_id(todos: &Vec<Tarea>, id: u32) -> Result<Option<u32>, Box<dyn std::error::Error>> {
     for (index, todo) in todos.into_iter().enumerate() {
         if todo.id == id {
             return Ok(Some(index as u32));
         }
     }
-
     Ok(None)
 }
 
+/// Comando para mostrar la ayuda de la CLI
 pub fn print_help() {
     print_cli_help();
 }
 
 
+/// Comando para inicializar el todo file
 pub fn create_new_todo(file_name: &str) {
     if create_new_todo_file(file_name) {
         println!("Nuevo proyecto inicializado en '{}'.", file_name);
@@ -63,33 +59,22 @@ pub fn create_new_todo(file_name: &str) {
 }
 
 
-pub fn list_todos() {
-    let contents = match list_get_todo_content() {
-        Ok(content) => content,
-        Err(e) => {
-            eprintln!("Error al leer el archivo: {}", e);
-            return;
-        }
-    };
-    let todos: Vec<Tarea> = match deserialize_str_json_data(&contents) {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("Error al deserializar el contenido JSON: {}", e);
-            return;
-        }
-    };
+// commando para istar las tareas
+pub fn list_todos() -> Result<Vec<Tarea>, AppError> {
+    let todos: Vec<Tarea> = get_todos(&crate::config::DEFAULT_TODO_FILE, false)?;
 
     if todos.is_empty() {
-        println!("No hay tareas en el proyecto.");
-        return;
+        return Err(AppError::ListaVacia)
     }
 
-    for todo in todos.into_iter().enumerate() {
-        println!("tarea {}: {} (Completada: {:?}, Prioridad: {})", todo.1.id, todo.1.descripcion, todo.1.estado , todo.1.prioridad);
+    for todo in &todos {
+        println!("tarea {}: {} (Completada: {:?}, Prioridad: {})", todo.id, todo.descripcion, todo.estado , todo.prioridad);
     }
+
+    Ok(todos)
 }
 
-
+/// commando para agregar un nuevo todo
 pub fn add_todo(file_name: &str, args: &CliArgs) -> Result<bool, Box<dyn std::error::Error>> {
     if !file_exists(file_name) {
         return Err(Box::new(io::Error::new(io::ErrorKind::NotFound, "Archivo no encontrado. Inicializa un proyecto primero.")));
@@ -143,7 +128,7 @@ pub fn complete_todo(file_name: &str, args: &CliArgs) -> Result<(), Box<dyn std:
         }
     };
     
-    let mut todos = get_todos(file_name, true)?;
+    let mut todos = get_todos(file_name, false)?;
 
     if let Some(index) = get_todo_by_id(&todos, id)? {
         todos[index as usize].estado = EstadoTarea::Completada;

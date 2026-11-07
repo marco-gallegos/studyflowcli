@@ -32,7 +32,12 @@ fn main() {
             }
         }
         Subcommand::List => {
-            list_todos();
+            match list_todos() {
+                Err(e) => {
+                    println!("{}",e)
+                },
+                Ok(_) => {}
+            }
         }
         Subcommand::Complete => {
             match complete_todo(&DEFAULT_TODO_FILE, &args) {

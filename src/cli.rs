@@ -37,8 +37,8 @@ pub fn options_to_struct(args: &Vec<String>) -> CliOptions {
         Some(value) => value.parse::<u8>().unwrap_or(0),
         None => 3,
     };
-
-    CliOptions { priority }
+    let status: Option<String> = search_double_dashed_arg(args, "status");
+    CliOptions { priority, status }
 }
 
 pub fn parse_args(args: &Vec<String>) -> CliArgs {

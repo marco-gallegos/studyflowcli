@@ -1,9 +1,10 @@
 //! Lectura y escritura del archivo local de datos.
 use std::fs::File;
 use std::io::{self, Write, Read};
-use std::error::Error;
 
 use crate::config::DEFAULT_TODO_FILE;
+use crate::errors::AppError;
+use crate::models::{Tarea};
 
 pub fn file_exists(file_name: &str) -> bool {
     if File::open(file_name).is_ok() {
@@ -34,12 +35,18 @@ pub fn read_todo_file(file_name: &str) -> io::Result<String> {
 }
 
 
-pub fn list_get_todo_content() ->  Result<String, Box<dyn Error>> {
+pub fn list_get_todo_content() ->  Result<String, AppError> {
     match read_todo_file(DEFAULT_TODO_FILE) {
         Ok(content) => Ok(content),
-        Err(e) => {
-            Err(Box::new(e))
+        Err(_) => {
+            Err(AppError::InvalidJsonFile)
         }
     }
+}
+
+/// Deserializa una cadena JSON en un objeto `serde_json::Value`.
+pub fn deserialize_str_json_data(json_str: &str) -> Result<Vec<Tarea>, serde_json::Error> {
+    let todos: Vec<Tarea> = serde_json::from_str(json_str)?;
+    Ok(todos)
 }
 

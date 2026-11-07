@@ -55,6 +55,7 @@ impl Tarea {
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct CliOptions {
     pub priority: u8,
+    pub status: Option<String>,
 }
 
 
