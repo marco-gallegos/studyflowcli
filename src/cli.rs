@@ -78,14 +78,28 @@ pub fn search_double_dashed_arg(args: &[String], arg_name: &str) -> Option<Strin
 /// assert_eq!(options_to_struct(&args).unwrap().priority, 3);
 /// ```
 pub fn options_to_struct(args: &[String]) -> AppResult<CliOptions> {
+    let mut priority_found = false;
     let priority = match search_double_dashed_arg(args, "priority") {
-        Some(value) => value
+        Some(value) => { 
+            priority_found = true;
+            value
             .parse::<u8>()
-            .map_err(|_| AppError::PrioridadInvalida(value))?,
+            .map_err(|_| AppError::PrioridadInvalida(value))?
+        },
         None => 3,
     };
 
-    Ok(CliOptions { priority })
+    let mut status_found = false;
+    let status = match search_double_dashed_arg(args, "status") {
+        Some(value) => {
+            status_found= true;
+            value
+        },
+        None => "".to_string(),
+    };
+
+
+    Ok(CliOptions { priority, priority_found, status, status_found })
 }
 
 fn positional_options(args: &[String]) -> Vec<String> {

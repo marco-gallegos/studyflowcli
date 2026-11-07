@@ -35,7 +35,7 @@ fn run() -> AppResult<()> {
         Subcommand::Help => print_help()?,
         Subcommand::Init => create_new_todo(&data_file)?,
         Subcommand::Add => add_todo(&data_file, &args)?,
-        Subcommand::List => list_todos(&data_file)?,
+        Subcommand::List => list_todos(&data_file, &args)?,
         Subcommand::Complete => complete_todo(&data_file, &args)?,
         Subcommand::Delete => delete_todo(&data_file, &args)?,
         Subcommand::Search => {

@@ -230,7 +230,7 @@ pub fn create_new_todo(file_name: &str) -> AppResult<()> {
 /// fs::remove_file(nombre).unwrap();
 /// assert!(list_todos(nombre).is_err());
 /// ```
-pub fn list_todos(file_name: &str) -> AppResult<()> {
+pub fn list_todos(file_name: &str, args: &CliArgs) -> AppResult<()> {
     let todos = get_todos(file_name, false)?;
 
     if todos.is_empty() {
@@ -238,7 +238,20 @@ pub fn list_todos(file_name: &str) -> AppResult<()> {
         return Ok(());
     }
 
+
     for tarea in &todos {
+
+        if args.structured_options.status_found
+            && serde_json::to_value(&tarea.estado)?.as_str()
+                != Some(args.structured_options.status.as_str())
+        {
+            continue;
+        }
+
+        if args.structured_options.priority_found && args.structured_options.priority != tarea.prioridad {
+            continue
+        }
+
         println!(
             "tarea {}: {} (Estado: {:?}, Prioridad: {})",
             tarea.id, tarea.descripcion, tarea.estado, tarea.prioridad

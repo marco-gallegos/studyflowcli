@@ -170,6 +170,10 @@ impl Tarea {
 pub struct CliOptions {
     /// Prioridad por defecto de una tarea nueva.
     pub priority: u8,
+    pub priority_found: bool,
+
+    pub status: String,
+    pub status_found: bool
 }
 
 /// Argumentos ya parseados de un comando.
