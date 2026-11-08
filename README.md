@@ -43,7 +43,7 @@ studyflowcli <subcomando> [opciones]
 | `help` | Muestra la ayuda. | `cargo run -- help` |
 | `init` | Crea el archivo de datos vacío. | `cargo run -- init` |
 | `add` | Agrega una tarea. | `cargo run -- add "Repasar ownership" --priority 5` |
-| `list` | Lista todas las tareas. | `cargo run -- list` |
+| `list` | Lista las tareas; acepta los filtros `--status` y `--priority`. | `cargo run -- list --status pendiente` |
 | `complete` | Marca una tarea como completada. | `cargo run -- complete 123` |
 | `delete` | Elimina una tarea. | `cargo run -- delete 123` |
 | `search` | Busca por descripción, categoría o prioridad. | `cargo run -- search rust` |
@@ -52,6 +52,22 @@ studyflowcli <subcomando> [opciones]
 `add` acepta `--priority N` antes o después de la descripción. Si no se indica,
 la prioridad por defecto es `3`. El ID que necesitan `complete` y `delete` se
 muestra con `list`.
+
+`list` acepta dos filtros opcionales que se pueden combinar:
+
+- `--status pendiente|pending` muestra solo las tareas pendientes.
+- `--status completada|completed` muestra solo las tareas completadas.
+- `--priority N` muestra solo las tareas con esa prioridad.
+
+```bash
+cargo run -- list --status pendiente
+cargo run -- list --priority 5
+cargo run -- list --status pendiente --priority 3
+```
+
+Si ningún elemento coincide con los filtros, `list` lo informa en la salida
+estándar. Un estado desconocido o una opción sin valor termina con código `1`
+y un mensaje en `stderr`.
 
 ### Ejemplo de flujo completo
 
@@ -144,8 +160,8 @@ tests/
   formato JSON es legible y permite representar el enum de estado con
   `#[serde(rename_all = "snake_case")]`.
 - **Sin `clap`**: el parseo de argumentos se hace con `std`, suficiente para
-  los subcomandos y la única opción `--priority`. Esto mantiene el proyecto
-  alineado con lo trabajado en el curso.
+  los subcomandos y las opciones `--priority` y `--status`. Esto mantiene el
+  proyecto alineado con lo trabajado en el curso.
 - **`AppError` y `AppResult`** centralizan los errores recuperables. Se
   implementan `Display`, `std::error::Error`, `From<io::Error>` y
   `From<serde_json::Error>` para poder usar `?`.
@@ -171,12 +187,13 @@ tests/
 El proyecto incluye:
 
 - Pruebas unitarias en cada módulo: mensajes de error, parseo de argumentos,
-  almacenamiento, filtros, búsqueda, cálculo de estadísticas y operaciones de
-  los comandos con archivos temporales.
-- Una prueba de integración en `tests/cli_flow_test.rs` que ejecuta el binario
+  almacenamiento, filtros por estado y prioridad, búsqueda, cálculo de
+  estadísticas y operaciones de los comandos con archivos temporales.
+- Pruebas de integración en `tests/cli_flow_test.rs` que ejecutan el binario
   completo con `STUDYFLOW_DATA_PATH` apuntando a un directorio temporal y
-  recorre `init`, `add`, `list`, `complete`, `search`, `stats` y `delete`,
-  además de verificar los códigos de salida de los errores esperados.
+  recorren `init`, `add`, `list`, `complete`, `search`, `stats` y `delete`,
+  además de verificar los filtros de `list` y los códigos de salida de los
+  errores esperados.
 
 Las pruebas usan archivos únicos en el directorio temporal del sistema y los
 eliminan al terminar, por lo que nunca modifican `studyflow_project.json`.

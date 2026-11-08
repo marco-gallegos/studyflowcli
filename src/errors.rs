@@ -34,6 +34,8 @@ pub enum AppError {
     IdInvalido(String),
     /// El valor recibido como prioridad no es un número válido.
     PrioridadInvalida(String),
+    /// El valor recibido como estado no es válido.
+    EstadoInvalido(String),
     /// El subcomando no existe.
     ComandoDesconocido(String),
     /// Falta un argumento obligatorio para un comando.
@@ -68,6 +70,10 @@ impl fmt::Display for AppError {
             Self::PrioridadInvalida(value) => {
                 write!(f, "La prioridad '{value}' no es un número válido.")
             }
+            Self::EstadoInvalido(value) => write!(
+                f,
+                "El estado '{value}' no es válido. Usa 'pendiente'/'pending' o 'completada'/'completed'."
+            ),
             Self::ComandoDesconocido(command) => write!(
                 f,
                 "Comando desconocido: '{command}'. Usa 'help' para ver las opciones."
@@ -144,6 +150,10 @@ mod tests {
         assert_eq!(
             AppError::PrioridadInvalida("alta".to_string()).to_string(),
             "La prioridad 'alta' no es un número válido."
+        );
+        assert_eq!(
+            AppError::EstadoInvalido("foo".to_string()).to_string(),
+            "El estado 'foo' no es válido. Usa 'pendiente'/'pending' o 'completada'/'completed'."
         );
         assert_eq!(
             AppError::ComandoDesconocido("foo".to_string()).to_string(),

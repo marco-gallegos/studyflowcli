@@ -71,7 +71,7 @@ pub enum Subcommand {
 /// let json = serde_json::to_string(&EstadoTarea::Pendiente).unwrap();
 /// assert_eq!(json, "\"pendiente\"");
 /// ```
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum EstadoTarea {
     /// La tarea todavía no fue completada.
@@ -160,20 +160,25 @@ impl Tarea {
 /// # Examples
 ///
 /// ```
-/// use studyflowcli::models::CliOptions;
+/// use studyflowcli::models::{CliOptions, EstadoTarea};
 ///
-/// let options = CliOptions { priority: 4 };
+/// let options = CliOptions {
+///     priority: 4,
+///     priority_found: true,
+///     status: Some(EstadoTarea::Pendiente),
+/// };
 ///
 /// assert_eq!(options.priority, 4);
+/// assert_eq!(options.status, Some(EstadoTarea::Pendiente));
 /// ```
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct CliOptions {
-    /// Prioridad por defecto de una tarea nueva.
+    /// Prioridad solicitada; vale `3` cuando no se indica.
     pub priority: u8,
+    /// Indica si la prioridad se especificó con `--priority`.
     pub priority_found: bool,
-
-    pub status: String,
-    pub status_found: bool
+    /// Estado por el que filtrar `list`, si se indicó con `--status`.
+    pub status: Option<EstadoTarea>,
 }
 
 /// Argumentos ya parseados de un comando.
@@ -186,7 +191,11 @@ pub struct CliOptions {
 /// let args = CliArgs {
 ///     subcommand: Subcommand::Add,
 ///     options: vec!["Repasar Rust".to_string()],
-///     structured_options: CliOptions { priority: 2 },
+///     structured_options: CliOptions {
+///         priority: 2,
+///         priority_found: true,
+///         status: None,
+///     },
 /// };
 ///
 /// assert_eq!(args.options.len(), 1);

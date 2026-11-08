@@ -1,7 +1,7 @@
 //! Definición de subcomandos, argumentos y opciones de la CLI.
 
 use crate::errors::{AppError, AppResult};
-use crate::models::{CliArgs, CliOptions, Subcommand};
+use crate::models::{CliArgs, CliOptions, EstadoTarea, Subcommand};
 
 /// Muestra la ayuda de la CLI en la salida estándar.
 ///
@@ -25,6 +25,10 @@ pub fn print_cli_help() {
     println!("  delete     Elimina una tarea.");
     println!("  search     Busca tareas por palabra clave.");
     println!("  stats      Muestra estadísticas de las tareas.");
+    println!();
+    println!("Opciones:");
+    println!("  --priority N      Prioridad de una tarea nueva (0-255).");
+    println!("  --status ESTADO   Filtra 'list' por pendiente/completada.");
 }
 
 /// Busca un argumento con doble guion y devuelve el valor que le sigue.
@@ -57,11 +61,19 @@ pub fn search_double_dashed_arg(args: &[String], arg_name: &str) -> Option<Strin
 /// Convierte las opciones de texto a una estructura tipada.
 ///
 /// Si no se indica `--priority`, se usa `3` como prioridad por defecto.
+/// `--status` acepta `pendiente`/`pending` o `completada`/`completed`.
+///
+/// # Errors
+///
+/// Devuelve [`AppError::PrioridadInvalida`] si `--priority` no es un número,
+/// [`AppError::EstadoInvalido`] si `--status` no es un estado conocido y
+/// [`AppError::ArgumentoFaltante`] si alguna opción aparece sin valor.
 ///
 /// # Examples
 ///
 /// ```
 /// use studyflowcli::cli::options_to_struct;
+/// use studyflowcli::models::EstadoTarea;
 ///
 /// let args: Vec<String> = ["studyflowcli", "add", "tarea", "--priority", "5"]
 ///     .iter()
@@ -69,6 +81,16 @@ pub fn search_double_dashed_arg(args: &[String], arg_name: &str) -> Option<Strin
 ///     .collect();
 ///
 /// assert_eq!(options_to_struct(&args).unwrap().priority, 5);
+///
+/// let args: Vec<String> = ["studyflowcli", "list", "--status", "pending"]
+///     .iter()
+///     .map(|arg| arg.to_string())
+///     .collect();
+///
+/// assert_eq!(
+///     options_to_struct(&args).unwrap().status,
+///     Some(EstadoTarea::Pendiente)
+/// );
 ///
 /// let args: Vec<String> = ["studyflowcli", "add", "tarea"]
 ///     .iter()
@@ -80,29 +102,54 @@ pub fn search_double_dashed_arg(args: &[String], arg_name: &str) -> Option<Strin
 pub fn options_to_struct(args: &[String]) -> AppResult<CliOptions> {
     let mut priority_found = false;
     let priority = match search_double_dashed_arg(args, "priority") {
-        Some(value) => { 
+        Some(value) => {
             priority_found = true;
             value
-            .parse::<u8>()
-            .map_err(|_| AppError::PrioridadInvalida(value))?
-        },
+                .parse::<u8>()
+                .map_err(|_| AppError::PrioridadInvalida(value))?
+        }
+        None if has_double_dashed_arg(args, "priority") => {
+            return Err(AppError::ArgumentoFaltante {
+                comando: "--priority",
+                uso: "studyflowcli <comando> --priority N",
+            });
+        }
         None => 3,
     };
 
-    let mut status_found = false;
     let status = match search_double_dashed_arg(args, "status") {
-        Some(value) => {
-            status_found= true;
-            value
-        },
-        None => "".to_string(),
+        Some(value) => Some(parse_status(&value)?),
+        None if has_double_dashed_arg(args, "status") => {
+            return Err(AppError::ArgumentoFaltante {
+                comando: "--status",
+                uso: "studyflowcli list --status <pendiente|completada>",
+            });
+        }
+        None => None,
     };
 
+    Ok(CliOptions {
+        priority,
+        priority_found,
+        status,
+    })
+}
 
-    Ok(CliOptions { priority, priority_found, status, status_found })
+fn has_double_dashed_arg(args: &[String], arg_name: &str) -> bool {
+    let double_dashed_arg = format!("--{arg_name}");
+    args.iter().any(|arg| arg == &double_dashed_arg)
+}
+
+fn parse_status(value: &str) -> AppResult<EstadoTarea> {
+    match value.to_lowercase().as_str() {
+        "pendiente" | "pending" => Ok(EstadoTarea::Pendiente),
+        "completada" | "completed" => Ok(EstadoTarea::Completada),
+        _ => Err(AppError::EstadoInvalido(value.to_string())),
+    }
 }
 
 fn positional_options(args: &[String]) -> Vec<String> {
+    const VALUE_OPTIONS: [&str; 2] = ["--priority", "--status"];
     let mut options = Vec::new();
     let mut skip_next = false;
 
@@ -112,7 +159,7 @@ fn positional_options(args: &[String]) -> Vec<String> {
             continue;
         }
 
-        if arg == "--priority" {
+        if VALUE_OPTIONS.contains(&arg.as_str()) {
             skip_next = true;
             continue;
         }
@@ -233,6 +280,48 @@ mod tests {
     }
 
     #[test]
+    fn reconoce_los_estados_para_filtrar() {
+        let casos = [
+            ("pendiente", EstadoTarea::Pendiente),
+            ("pending", EstadoTarea::Pendiente),
+            ("completada", EstadoTarea::Completada),
+            ("completed", EstadoTarea::Completada),
+        ];
+
+        for (valor, esperado) in casos {
+            let argumentos = args(&["studyflowcli", "list", "--status", valor]);
+            let opciones = options_to_struct(&argumentos).unwrap();
+
+            assert_eq!(opciones.status, Some(esperado));
+        }
+    }
+
+    #[test]
+    fn estado_invalido_devuelve_error() {
+        let argumentos = args(&["studyflowcli", "list", "--status", "foo"]);
+
+        assert!(matches!(
+            options_to_struct(&argumentos),
+            Err(AppError::EstadoInvalido(_))
+        ));
+    }
+
+    #[test]
+    fn opciones_sin_valor_devuelven_error() {
+        let prioridad = args(&["studyflowcli", "add", "tarea", "--priority"]);
+        assert!(matches!(
+            options_to_struct(&prioridad),
+            Err(AppError::ArgumentoFaltante { .. })
+        ));
+
+        let estado = args(&["studyflowcli", "list", "--status"]);
+        assert!(matches!(
+            options_to_struct(&estado),
+            Err(AppError::ArgumentoFaltante { .. })
+        ));
+    }
+
+    #[test]
     fn sin_subcomando_se_muestra_la_ayuda() {
         let parsed = parse_args(&args(&["studyflowcli"])).unwrap();
 
@@ -343,5 +432,23 @@ mod tests {
 
         assert_eq!(parsed.options, vec!["Repasar Rust".to_string()]);
         assert_eq!(parsed.structured_options.priority, 2);
+    }
+
+    #[test]
+    fn las_opciones_posicionales_excluyen_el_estado() {
+        let parsed = parse_args(&args(&[
+            "studyflowcli",
+            "add",
+            "--status",
+            "pendiente",
+            "Repasar Rust",
+        ]))
+        .unwrap();
+
+        assert_eq!(parsed.options, vec!["Repasar Rust".to_string()]);
+        assert_eq!(
+            parsed.structured_options.status,
+            Some(EstadoTarea::Pendiente)
+        );
     }
 }

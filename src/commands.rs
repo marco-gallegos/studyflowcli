@@ -5,7 +5,7 @@ use std::fs;
 use crate::{
     cli::print_cli_help,
     errors::{AppError, AppResult},
-    models::{CliArgs, EstadoTarea, Tarea},
+    models::{CliArgs, CliOptions, EstadoTarea, Tarea},
     reports::stats_report,
     storage::{create_new_todo_file, file_exists, read_todo_file},
 };
@@ -195,7 +195,10 @@ pub fn create_new_todo(file_name: &str) -> AppResult<()> {
     Ok(())
 }
 
-/// Imprime todas las tareas almacenadas.
+/// Imprime las tareas almacenadas, aplicando los filtros opcionales.
+///
+/// `--status` filtra por estado y `--priority` filtra por prioridad. Los
+/// filtros se pueden combinar.
 ///
 /// # Errors
 ///
@@ -207,7 +210,7 @@ pub fn create_new_todo(file_name: &str) -> AppResult<()> {
 /// ```
 /// use std::fs;
 /// use studyflowcli::commands::list_todos;
-/// use studyflowcli::models::{EstadoTarea, Tarea};
+/// use studyflowcli::models::{CliArgs, CliOptions, EstadoTarea, Subcommand, Tarea};
 ///
 /// let ruta = std::env::temp_dir().join(format!(
 ///     "studyflow_doc_list_{}.json",
@@ -225,10 +228,21 @@ pub fn create_new_todo(file_name: &str) -> AppResult<()> {
 /// }];
 ///
 /// fs::write(nombre, serde_json::to_string(&todos).unwrap()).unwrap();
-/// assert!(list_todos(nombre).is_ok());
+///
+/// let args = CliArgs {
+///     subcommand: Subcommand::List,
+///     options: Vec::new(),
+///     structured_options: CliOptions {
+///         priority: 3,
+///         priority_found: false,
+///         status: None,
+///     },
+/// };
+///
+/// assert!(list_todos(nombre, &args).is_ok());
 ///
 /// fs::remove_file(nombre).unwrap();
-/// assert!(list_todos(nombre).is_err());
+/// assert!(list_todos(nombre, &args).is_err());
 /// ```
 pub fn list_todos(file_name: &str, args: &CliArgs) -> AppResult<()> {
     let todos = get_todos(file_name, false)?;
@@ -238,33 +252,42 @@ pub fn list_todos(file_name: &str, args: &CliArgs) -> AppResult<()> {
         return Ok(());
     }
 
+    let mut mostradas = 0;
 
     for tarea in &todos {
-
-        if args.structured_options.status_found
-            && serde_json::to_value(&tarea.estado)?.as_str()
-                != Some(args.structured_options.status.as_str())
-        {
+        if !matches_filters(tarea, &args.structured_options) {
             continue;
         }
 
-        if args.structured_options.priority_found && args.structured_options.priority != tarea.prioridad {
-            continue
-        }
-
+        mostradas += 1;
         println!(
             "tarea {}: {} (Estado: {:?}, Prioridad: {})",
             tarea.id, tarea.descripcion, tarea.estado, tarea.prioridad
         );
     }
 
+    if mostradas == 0 {
+        println!("No se encontraron tareas con los filtros indicados.");
+    }
+
     Ok(())
+}
+
+fn matches_filters(tarea: &Tarea, options: &CliOptions) -> bool {
+    let status_coincide = match &options.status {
+        Some(status) => status == &tarea.estado,
+        None => true,
+    };
+
+    let prioridad_coincide = !options.priority_found || options.priority == tarea.prioridad;
+
+    status_coincide && prioridad_coincide
 }
 
 /// Agrega una tarea nueva al archivo de datos.
 ///
 /// La descripción se toma del primer argumento posicional y la prioridad de
-/// [`CliOptions`](crate::models::CliOptions).
+/// [`CliOptions`].
 ///
 /// # Errors
 ///
@@ -290,7 +313,11 @@ pub fn list_todos(file_name: &str, args: &CliArgs) -> AppResult<()> {
 /// let args = CliArgs {
 ///     subcommand: Subcommand::Add,
 ///     options: vec!["Repasar ownership".to_string()],
-///     structured_options: CliOptions { priority: 2 },
+///     structured_options: CliOptions {
+///         priority: 2,
+///         priority_found: true,
+///         status: None,
+///     },
 /// };
 ///
 /// add_todo(nombre, &args).unwrap();
@@ -376,7 +403,11 @@ fn parse_task_id(args: &CliArgs, comando: &'static str, uso: &'static str) -> Ap
 /// let args = CliArgs {
 ///     subcommand: Subcommand::Complete,
 ///     options: vec!["7".to_string()],
-///     structured_options: CliOptions { priority: 3 },
+///     structured_options: CliOptions {
+///         priority: 3,
+///         priority_found: false,
+///         status: None,
+///     },
 /// };
 ///
 /// complete_todo(nombre, &args).unwrap();
@@ -432,7 +463,11 @@ pub fn complete_todo(file_name: &str, args: &CliArgs) -> AppResult<()> {
 /// let args = CliArgs {
 ///     subcommand: Subcommand::Delete,
 ///     options: vec!["9".to_string()],
-///     structured_options: CliOptions { priority: 3 },
+///     structured_options: CliOptions {
+///         priority: 3,
+///         priority_found: false,
+///         status: None,
+///     },
 /// };
 ///
 /// delete_todo(nombre, &args).unwrap();
@@ -502,7 +537,11 @@ pub fn delete_todo(file_name: &str, args: &CliArgs) -> AppResult<()> {
 /// let args = CliArgs {
 ///     subcommand: Subcommand::Search,
 ///     options: vec!["rust".to_string()],
-///     structured_options: CliOptions { priority: 3 },
+///     structured_options: CliOptions {
+///         priority: 3,
+///         priority_found: false,
+///         status: None,
+///     },
 /// };
 ///
 /// let resultados = search_todos(nombre, &args).unwrap();
@@ -628,7 +667,19 @@ mod tests {
         CliArgs {
             subcommand,
             options: options.iter().map(|valor| valor.to_string()).collect(),
-            structured_options: CliOptions { priority: 3 },
+            structured_options: CliOptions {
+                priority: 3,
+                priority_found: false,
+                status: None,
+            },
+        }
+    }
+
+    fn opciones(priority: u8, priority_found: bool, status: Option<EstadoTarea>) -> CliOptions {
+        CliOptions {
+            priority,
+            priority_found,
+            status,
         }
     }
 
@@ -672,6 +723,27 @@ mod tests {
             activos.iter().map(|tarea| tarea.id).collect::<Vec<_>>(),
             vec![1, 3]
         );
+    }
+
+    #[test]
+    fn los_filtros_coinciden_por_estado_y_prioridad() {
+        let tarea = tarea(1, "pendiente", EstadoTarea::Pendiente);
+
+        assert!(matches_filters(&tarea, &opciones(3, false, None)));
+        assert!(matches_filters(
+            &tarea,
+            &opciones(3, false, Some(EstadoTarea::Pendiente))
+        ));
+        assert!(!matches_filters(
+            &tarea,
+            &opciones(3, false, Some(EstadoTarea::Completada))
+        ));
+        assert!(matches_filters(&tarea, &opciones(3, true, None)));
+        assert!(!matches_filters(&tarea, &opciones(5, true, None)));
+        assert!(matches_filters(
+            &tarea,
+            &opciones(3, true, Some(EstadoTarea::Pendiente))
+        ));
     }
 
     #[test]
@@ -744,9 +816,10 @@ mod tests {
     #[test]
     fn listar_falla_si_no_existe_el_archivo() {
         let archivo = TempFile::new("list_inexistente");
+        let argumentos = args(Subcommand::List, &[]);
 
         assert!(matches!(
-            list_todos(archivo.path()),
+            list_todos(archivo.path(), &argumentos),
             Err(AppError::ArchivoNoEncontrado(_))
         ));
     }
